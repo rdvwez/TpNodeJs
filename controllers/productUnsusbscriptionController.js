@@ -7,6 +7,7 @@ const Stripe = require('stripe');
 
 const ProductUnsubscription = async(req, res) => {
     const body = req.body;
+    const userId = req.params.id;
 
     let select = "SELECT subscription , customer, paiement_manager FROM user WHERE id = ?;"
     let upudate = "UPDATE user  SET subscription = 1 WHERE id = ?;"
@@ -27,29 +28,55 @@ const ProductUnsubscription = async(req, res) => {
             });
           });
 
-          if (userResult.subscription !== 1) {
+          if (!userResult || userResult.subscription !== 1) {
             return res.status(409).json({
               message: 'User not subscribed.',
             });
           }
 
-          // Mettre à jour l'abonnement dans Stripe
-        await Stripe.subscriptions.del(userResult.paiement_manager);
+          // Annule l'abonnement dans Stripe
+        const canceledSubscription = await Stripe.subscriptions.del(userResult.paiement_manager);
 
-        // Mettre à jour l'utilisateur dans la base de données
-        await new Promise((resolve, reject) => {
-            connect.execute(upudate, [decoded.id], function (updatedErrorr, updatedResult) {
-            if (updatedErrorr) {
-                reject(updatedErrorr);
-            } else {
-                resolve();
-            }
+        // Vérifie si l'abonnement a été correctement annulé dans Stripe
+        if (canceledSubscription.status === 'canceled') {
+            // Modifie les informations de l'utilisateur dans la base de données
+            await new Promise((resolve, reject) => {
+              connect.execute(updateUser, [userId], function (err, updateResult) {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
             });
-        });
 
-        return res.status(200).json({
-            message: 'Unsubscribed successfully.',
-          });
+            return res.status(200).json({
+                message: 'Unsubscribed successfully.',
+              });
+        } else {
+                // Si l'abonnement n'a pas été annulé correctement dans Stripe
+                return res.status(500).json({
+                  message: 'Failed to cancel subscription in Stripe.',
+                });
+        }
+
+          // Mettre à jour l'abonnement dans Stripe
+        // await Stripe.subscriptions.del(userResult.paiement_manager);
+
+        // // Mettre à jour l'utilisateur dans la base de données
+        // await new Promise((resolve, reject) => {
+        //     connect.execute(upudate, [decoded.id], function (updatedErrorr, updatedResult) {
+        //     if (updatedErrorr) {
+        //         reject(updatedErrorr);
+        //     } else {
+        //         resolve();
+        //     }
+        //     });
+        // });
+
+        // return res.status(200).json({
+        //     message: 'Unsubscribed successfully.',
+        //   });
 
         // await new Promise((resolve, reject) => {
         //     connect.execute(upudate, [decoded.id], function (updatedErrorr, updatedResult) {
