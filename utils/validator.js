@@ -28,9 +28,14 @@ let unsusbscription = Yup.object({
     susbcription: Yup.boolean().required(),
 })
 
+let editSubscription = Yup.object({
+    price: Yup.string().required().min(2).max(4),
+})
+
 module.exports = {
     register,
     login,
     cardInfo,
-    unsusbscription
+    unsusbscription,
+    editSubscription
 }

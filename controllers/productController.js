@@ -114,14 +114,22 @@ const createProduct = async (req, res) => {
       // Mettre à jour les champs customer et paiement_manager dans la base de données
       let updateUser = "UPDATE user SET customer = ?, paiement_manager = ? WHERE email = ?;";
       await new Promise((resolve, reject) => {
-        connect.execute(updateUser, [response.customer, response.id, decoded.email], function (err, updateResult) {
-          if (err) {
-            reject(err);
+        connect.execute(updateUser, [response.customer, response.id, decoded.email], function (error, updateResult) {
+          if (error) {
+            reject(error);
           } else {
             resolve();
           }
         });
       });
+
+    const customerID = response.customer;
+    const paymentMethodID = response.default_payment_method;
+    await stripe.customers.update(customerID, {
+      invoice_settings: {
+        default_payment_method: paymentMethodID,
+      },
+    });
   
       return res.status(200).json({
         message: 'Product successfully dreated!',
@@ -137,7 +145,6 @@ const createProduct = async (req, res) => {
 
 
 const readProduct = (req, res) => {
-    // Génération de fausses données product
     const productName = faker.commerce.productName();
     const productDescription = faker.commerce.productDescription();
     const productPrice = faker.commerce.price();
@@ -145,7 +152,6 @@ const readProduct = (req, res) => {
 
     const productId = req.params.id; 
     res.status(200).json({
-        // On crée un faux produit pour simuler la réponse de la BDD
         id: productId,
         name: productName,
         description: productDescription,
@@ -165,6 +171,6 @@ const deleteProduct = (req, res) => {
     });
 };
 
-// Syntaxe différente pour exporter des modules
+
 
 module.exports={createProduct, readProduct, updateProduct, deleteProduct};
